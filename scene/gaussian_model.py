@@ -28,7 +28,7 @@ class GaussianModel:
             L = build_scaling_rotation(scaling_modifier * scaling, rotation)
             actual_covariance = L @ L.transpose(1, 2)
             symm = strip_symmetric(actual_covariance)
-            return symm
+            return symm #获取协方差矩阵的前两行 得到形状为 (batch_size,6) 的向量
         
         self.scaling_activation = torch.exp
         self.scaling_inverse_activation = torch.log
@@ -36,27 +36,27 @@ class GaussianModel:
         self.covariance_activation = build_covariance_from_scaling_rotation
 
         self.opacity_activation = torch.sigmoid
-        self.inverse_opacity_activation = inverse_sigmoid
+        self.inverse_opacity_activation = inverse_sigmoid #sigmoid 反函数
 
         self.rotation_activation = torch.nn.functional.normalize
 
 
     def __init__(self, sh_degree : int):
-        self.active_sh_degree = 0
-        self.max_sh_degree = sh_degree  
-        self._xyz = torch.empty(0)
-        self._features_dc = torch.empty(0)
-        self._features_rest = torch.empty(0)
-        self._scaling = torch.empty(0)
-        self._rotation = torch.empty(0)
-        self._opacity = torch.empty(0)
-        self.max_radii2D = torch.empty(0)
+        self.active_sh_degree = 0   #球谐阶数
+        self.max_sh_degree = sh_degree  #最大球谐阶数 迭代过程中阶数逐渐增加
+        self._xyz = torch.empty(0) #每个 Gaussian 的中心位置
+        self._features_dc = torch.empty(0) #球谐函数的第0阶系数，对应常数项
+        self._features_rest = torch.empty(0) #球谐函数的高阶系数
+        self._scaling = torch.empty(0) #椭球的尺度
+        self._rotation = torch.empty(0) #椭球的旋转
+        self._opacity = torch.empty(0) #不透明度
+        self.max_radii2D = torch.empty(0) #最大2D半径
         self.xyz_gradient_accum = torch.empty(0)
         self.denom = torch.empty(0)
         self.optimizer = None
-        self.percent_dense = 0
-        self.spatial_lr_scale = 0
-        self.setup_functions()
+        self.percent_dense = 0 #初始化百分比密度为0
+        self.spatial_lr_scale = 0 #初始化空间学习速率缩放为0
+        self.setup_functions() #调用 setup_functions 方法设置各种激活和变换函数
 
     def capture(self):
         return (
@@ -127,10 +127,11 @@ class GaussianModel:
         fused_color = RGB2SH(torch.tensor(np.asarray(pcd.colors)).float().cuda())
         features = torch.zeros((fused_color.shape[0], 3, (self.max_sh_degree + 1) ** 2)).float().cuda()
         features[:, :3, 0 ] = fused_color
-        features[:, 3:, 1:] = 0.0
-
+        #bug 第二维初始为3 不存在3：
+        #features[:, 3:, 1:] = 0.0
+        features[:, :, 1:] = 0.0
         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
-
+        #每个点到其最近邻点的平均距离 或者其他距离统计值
         dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
         scales = torch.log(torch.sqrt(dist2))[...,None].repeat(1, 3)
         rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
@@ -373,6 +374,7 @@ class GaussianModel:
 
     def densify_and_clone(self, grads, grad_threshold, scene_extent):
         # Extract points that satisfy the gradient condition
+        # 对于每个点计算其梯度的L2范数，如果大于等于梯度阈值，标记为True,否则为False
         selected_pts_mask = torch.where(torch.norm(grads, dim=-1) >= grad_threshold, True, False)
         selected_pts_mask = torch.logical_and(selected_pts_mask,
                                               torch.max(self.get_scaling, dim=1).values <= self.percent_dense*scene_extent)
@@ -385,18 +387,18 @@ class GaussianModel:
         new_rotation = self._rotation[selected_pts_mask]
 
         self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation)
-
+    #密集化与修剪操作
     def densify_and_prune(self, max_grad, min_opacity, extent, max_screen_size):
-        grads = self.xyz_gradient_accum / self.denom
+        grads = self.xyz_gradient_accum / self.denom #计算密度估计的梯度
         grads[grads.isnan()] = 0.0
 
-        self.densify_and_clone(grads, max_grad, extent)
-        self.densify_and_split(grads, max_grad, extent)
+        self.densify_and_clone(grads, max_grad, extent)#重建不足的区域的小高斯分布执行clone
+        self.densify_and_split(grads, max_grad, extent)#高方差区域的大高斯分布执行split
 
-        prune_mask = (self.get_opacity < min_opacity).squeeze()
+        prune_mask = (self.get_opacity < min_opacity).squeeze()#创建一个掩码，标记那些透明度小于指定阈值的点。
         if max_screen_size:
-            big_points_vs = self.max_radii2D > max_screen_size
-            big_points_ws = self.get_scaling.max(dim=1).values > 0.1 * extent
+            big_points_vs = self.max_radii2D > max_screen_size #创建一个掩码，标记在图像空间中半径大于指定阈值的点
+            big_points_ws = self.get_scaling.max(dim=1).values > 0.1 * extent # #创建一个掩码，标记在世界空间中尺寸大于指定阈值的点
             prune_mask = torch.logical_or(torch.logical_or(prune_mask, big_points_vs), big_points_ws)
         self.prune_points(prune_mask)
 

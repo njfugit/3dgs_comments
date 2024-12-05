@@ -70,7 +70,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
         # Every 1000 its we increase the levels of SH up to a maximum degree
         if iteration % 1000 == 0:
-            gaussians.oneupSHdegree()
+            gaussians.oneupSHdegree()#增加球谐函数的阶数
 
         # Pick a random Camera
         if not viewpoint_stack:
@@ -109,16 +109,17 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
                 scene.save(iteration)
 
-            # Densification
+            # Densification 在一定的迭代次数内进行密集化处理。
             if iteration < opt.densify_until_iter:
-                # Keep track of max radii in image-space for pruning
+                # Keep track of max radii in image-space for pruning  追踪图像空间中高斯体的最大半径，用于后续剪枝
                 gaussians.max_radii2D[visibility_filter] = torch.max(gaussians.max_radii2D[visibility_filter], radii[visibility_filter])
                 gaussians.add_densification_stats(viewspace_point_tensor, visibility_filter)
 
                 if iteration > opt.densify_from_iter and iteration % opt.densification_interval == 0:
                     size_threshold = 20 if iteration > opt.opacity_reset_interval else None
+                    # 执行密度控制和剪枝操作
                     gaussians.densify_and_prune(opt.densify_grad_threshold, 0.005, scene.cameras_extent, size_threshold)
-                
+                #当迭代次数是不透明度重置间隔的整数倍或者在白色背景的情况下，刚好达到开始密度控制的迭代次数  重置不透明度
                 if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
                     gaussians.reset_opacity()
 
