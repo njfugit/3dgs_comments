@@ -45,9 +45,12 @@ class SceneInfo(NamedTuple):
 def getNerfppNorm(cam_info):
     def get_center_and_diag(cam_centers):
         cam_centers = np.hstack(cam_centers)
+        #计算平均相机中心（所有相机中心的质心）。这实际上给出了相机阵列的“中心”
         avg_cam_center = np.mean(cam_centers, axis=1, keepdims=True)
         center = avg_cam_center
+        #每个相机计算与平均相机中心的距离
         dist = np.linalg.norm(cam_centers - center, axis=0, keepdims=True)
+        #对角线是任何相机中心与平均中心之间的最大距离，本质上表示相机阵列在 3D 空间中的“扩展”或范围
         diagonal = np.max(dist)
         return center.flatten(), diagonal
 

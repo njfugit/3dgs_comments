@@ -3,7 +3,7 @@
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
 #
-# This software is free for non-commercial, research and evaluation use 
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
 #
 # For inquiries contact  george.drettakis@inria.fr
@@ -32,8 +32,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree)
-    scene = Scene(dataset, gaussians)#处理场景的初始化、保存和获取相机信息等任务，
-    gaussians.training_setup(opt)
+    scene = Scene(dataset, gaussians) #处理场景的初始化、保存和获取相机信息等任务，
+    gaussians.training_setup(opt) #设置 GaussianModel 的训练参数
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)
@@ -139,11 +139,13 @@ def prepare_output_and_logger(args):
         else:
             unique_str = str(uuid.uuid4())
         args.model_path = os.path.join("./output/", unique_str[0:10])
-        
+
     # Set up output folder
     print("Output folder: {}".format(args.model_path))
     os.makedirs(args.model_path, exist_ok = True)
     with open(os.path.join(args.model_path, "cfg_args"), 'w') as cfg_log_f:
+        # vars 函数返回 args 对象的 __dict__ 属性，即一个包含 args 对象所有属性和值的字典。Namespace 是 argparse 模块中的一个类，用于创建一个简单的对象来存储命令行参数。**vars(args) 将 args 对象的属性和值作为关键字参数传递给 Namespace 构造函数，创建一个新的 Namespace 对象。str(Namespace(**vars(args)))：将新的 Namespace 对象转换为字符串格式
+        # 如果 vars(args) 返回 {'attr1': value1, 'attr2': value2}，那么 **vars(args) 相当于 attr1=value1, attr2=value2
         cfg_log_f.write(str(Namespace(**vars(args))))
 
     # Create Tensorboard writer
@@ -208,15 +210,18 @@ if __name__ == "__main__":
     parser.add_argument("--start_checkpoint", type=str, default = None)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
-    
+
     print("Optimizing " + args.model_path)
 
     # Initialize system state (RNG)
     safe_state(args.quiet)
 
     # Start GUI server, configure and run training
-    network_gui.init(args.ip, args.port)
+    network_gui.init(
+        args.ip, args.port
+    )#初始化一个GUI服务器，使用 args.ip 和 args.port 作为参数。这可能是一个用于监视和控制训练过程的图形用户界面的一部分。
     torch.autograd.set_detect_anomaly(args.detect_anomaly) #这行代码设置 PyTorch 是否要检测梯度计算中的异常
+    # 包含的一些模型的参数、优化器的参数、其他pipeline的参数
     training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from)
 
     # All done

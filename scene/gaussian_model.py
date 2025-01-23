@@ -376,6 +376,7 @@ class GaussianModel:
         # Extract points that satisfy the gradient condition
         # 对于每个点计算其梯度的L2范数，如果大于等于梯度阈值，标记为True,否则为False
         selected_pts_mask = torch.where(torch.norm(grads, dim=-1) >= grad_threshold, True, False)
+        #进一步过滤掉那些缩放（scaling）大于一定百分比（self.percent_dense）的场景范围（scene_extent）的点。这样可以确保新添加的点不会太远离原始数据
         selected_pts_mask = torch.logical_and(selected_pts_mask,
                                               torch.max(self.get_scaling, dim=1).values <= self.percent_dense*scene_extent)
         

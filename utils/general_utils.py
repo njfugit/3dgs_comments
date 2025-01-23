@@ -3,7 +3,7 @@
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
 #
-# This software is free for non-commercial, research and evaluation use 
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
 #
 # For inquiries contact  george.drettakis@inria.fr
@@ -108,7 +108,7 @@ def build_scaling_rotation(s, r):
 
     L = R @ L
     return L
-
+# 相当于重载标准输出格式 增加时间戳
 def safe_state(silent):
     old_f = sys.stdout
     class F:
@@ -121,7 +121,7 @@ def safe_state(silent):
                     old_f.write(x.replace("\n", " [{}]\n".format(str(datetime.now().strftime("%d/%m %H:%M:%S")))))
                 else:
                     old_f.write(x)
-
+        # 将原始标准输出的缓冲区刷新
         def flush(self):
             old_f.flush()
 
