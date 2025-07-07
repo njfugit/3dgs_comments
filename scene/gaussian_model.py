@@ -3,7 +3,7 @@
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
 #
-# This software is free for non-commercial, research and evaluation use 
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
 #
 # For inquiries contact  george.drettakis@inria.fr
@@ -24,12 +24,15 @@ from utils.general_utils import strip_symmetric, build_scaling_rotation
 class GaussianModel:
 
     def setup_functions(self):
+        # 通过 L 来计算协方差，模型可以将复杂的带约束优化问题（优化协方差矩阵）转换成一个简单的无约束优化问题（优化缩放和旋转）
+        # 协方差矩阵计算公式：
+        # sigma = L @ L.T = (R @ S) @ (R @ S).T = R @ S @ S.T @ R.T = R @ S^2 @ R.T
         def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
             L = build_scaling_rotation(scaling_modifier * scaling, rotation)
             actual_covariance = L @ L.transpose(1, 2)
             symm = strip_symmetric(actual_covariance)
-            return symm #获取协方差矩阵的前两行 得到形状为 (batch_size,6) 的向量
-        
+            return symm #获取协方差矩阵的上三角部分 得到形状为 (batch_size,6) 的向量
+
         self.scaling_activation = torch.exp
         self.scaling_inverse_activation = torch.log
 
@@ -39,7 +42,6 @@ class GaussianModel:
         self.inverse_opacity_activation = inverse_sigmoid #sigmoid 反函数
 
         self.rotation_activation = torch.nn.functional.normalize
-
 
     def __init__(self, sh_degree : int):
         self.active_sh_degree = 0   #球谐阶数
@@ -73,7 +75,7 @@ class GaussianModel:
             self.optimizer.state_dict(),
             self.spatial_lr_scale,
         )
-    
+
     def restore(self, model_args, training_args):
         (self.active_sh_degree, 
         self._xyz, 
@@ -95,25 +97,25 @@ class GaussianModel:
     @property
     def get_scaling(self):
         return self.scaling_activation(self._scaling)
-    
+
     @property
     def get_rotation(self):
         return self.rotation_activation(self._rotation)
-    
+
     @property
     def get_xyz(self):
         return self._xyz
-    
+
     @property
     def get_features(self):
         features_dc = self._features_dc
         features_rest = self._features_rest
         return torch.cat((features_dc, features_rest), dim=1)
-    
+
     @property
     def get_opacity(self):
         return self.opacity_activation(self._opacity)
-    
+
     def get_covariance(self, scaling_modifier = 1):
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
 
@@ -127,11 +129,11 @@ class GaussianModel:
         fused_color = RGB2SH(torch.tensor(np.asarray(pcd.colors)).float().cuda())
         features = torch.zeros((fused_color.shape[0], 3, (self.max_sh_degree + 1) ** 2)).float().cuda()
         features[:, :3, 0 ] = fused_color
-        #bug 第二维初始为3 不存在3：
-        #features[:, 3:, 1:] = 0.0
+        # bug 第二维初始为3 不存在3：
+        # features[:, 3:, 1:] = 0.0
         features[:, :, 1:] = 0.0
         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
-        #每个点到其最近邻点的平均距离 或者其他距离统计值
+        # 每个点到其最近邻点的平均距离 或者其他距离统计值
         dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
         scales = torch.log(torch.sqrt(dist2))[...,None].repeat(1, 3)
         rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
@@ -376,10 +378,10 @@ class GaussianModel:
         # Extract points that satisfy the gradient condition
         # 对于每个点计算其梯度的L2范数，如果大于等于梯度阈值，标记为True,否则为False
         selected_pts_mask = torch.where(torch.norm(grads, dim=-1) >= grad_threshold, True, False)
-        #进一步过滤掉那些缩放（scaling）大于一定百分比（self.percent_dense）的场景范围（scene_extent）的点。这样可以确保新添加的点不会太远离原始数据
+        # 进一步过滤掉那些缩放（scaling）大于一定百分比（self.percent_dense）的场景范围（scene_extent）的点。这样可以确保新添加的点不会太远离原始数据
         selected_pts_mask = torch.logical_and(selected_pts_mask,
                                               torch.max(self.get_scaling, dim=1).values <= self.percent_dense*scene_extent)
-        
+
         new_xyz = self._xyz[selected_pts_mask]
         new_features_dc = self._features_dc[selected_pts_mask]
         new_features_rest = self._features_rest[selected_pts_mask]
@@ -388,7 +390,7 @@ class GaussianModel:
         new_rotation = self._rotation[selected_pts_mask]
 
         self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation)
-    #密集化与修剪操作
+    # 密集化与修剪操作
     def densify_and_prune(self, max_grad, min_opacity, extent, max_screen_size):
         grads = self.xyz_gradient_accum / self.denom #计算密度估计的梯度
         grads[grads.isnan()] = 0.0

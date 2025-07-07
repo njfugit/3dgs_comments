@@ -47,8 +47,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     viewpoint_stack = None
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
+    # first_iter 的初始值是 0。如果有检查点文件存在，first_iter会被更新为检查点文件中保存的迭代次数。然后通过 first_iter += 1，确保训练循环从正确的迭代次数开始，而不是从检查点保存的迭代次数再重复一次。
     first_iter += 1
-    for iteration in range(first_iter, opt.iterations + 1):        
+    for iteration in range(first_iter, opt.iterations + 1):
         if network_gui.conn == None:
             network_gui.try_connect()
         while network_gui.conn != None:
@@ -119,7 +120,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     size_threshold = 20 if iteration > opt.opacity_reset_interval else None
                     # 执行密度控制和剪枝操作
                     gaussians.densify_and_prune(opt.densify_grad_threshold, 0.005, scene.cameras_extent, size_threshold)
-                #当迭代次数是不透明度重置间隔的整数倍或者在白色背景的情况下，刚好达到开始密度控制的迭代次数  重置不透明度
+                # 当迭代次数是不透明度重置间隔的整数倍或者在白色背景的情况下，刚好达到开始密度控制的迭代次数  重置不透明度
                 if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
                     gaussians.reset_opacity()
 

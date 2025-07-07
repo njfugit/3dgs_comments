@@ -26,6 +26,7 @@ def PILtoTorch(pil_image, resolution):
     else:
         return resized_image.unsqueeze(dim=-1).permute(2, 0, 1)
 
+# 实现类似预热(warmup)机制 用于调整学习率的衰减
 def get_expon_lr_func(
     lr_init, lr_final, lr_delay_steps=0, lr_delay_mult=1.0, max_steps=1000000
 ):
@@ -50,6 +51,7 @@ def get_expon_lr_func(
             return 0.0
         if lr_delay_steps > 0:
             # A kind of reverse cosine decay.
+            # 正弦函数的前半周期，从0到π/2  初始值较低，中间阶段增长较快，后期增长放缓
             delay_rate = lr_delay_mult + (1 - lr_delay_mult) * np.sin(
                 0.5 * np.pi * np.clip(step / lr_delay_steps, 0, 1)
             )
@@ -61,6 +63,7 @@ def get_expon_lr_func(
 
     return helper
 
+# 只保留矩阵L的上三角部分，并将其转换为6维向量
 def strip_lowerdiag(L):
     uncertainty = torch.zeros((L.shape[0], 6), dtype=torch.float, device="cuda")
 
@@ -75,6 +78,16 @@ def strip_lowerdiag(L):
 def strip_symmetric(sym):
     return strip_lowerdiag(sym)
 
+# 其中q₁ = [a₁, b₁, c₁, d₁]，q₂ = [a₂, b₂, c₂, d₂]
+# q₁⊗q₂ = [a₁a₂ - b₁b₂ - c₁c₂ - d₁d₂,
+#         a₁b₂ + b₁a₂ + c₁d₂ - d₁c₂,
+#         a₁c₂ - b₁d₂ + c₁a₂ + d₁b₂,
+#         a₁d₂ + b₁c₂ - c₁b₂ + d₁a₂]
+#
+# 四元数转旋转矩阵的公式：
+# R = [1 - 2(y^2 + z^2)  2(x*y - r*z)  2(x*z + r*y)]
+#     [2(x*y + r*z)  1 - 2(x^2 + z^2)  2(y*z - r*x)]
+#     [2(x*z - r*y)  2(y*z + r*x)  1 - 2(x^2 + y^2)]
 def build_rotation(r):
     norm = torch.sqrt(r[:,0]*r[:,0] + r[:,1]*r[:,1] + r[:,2]*r[:,2] + r[:,3]*r[:,3])
 
@@ -100,8 +113,9 @@ def build_rotation(r):
 
 def build_scaling_rotation(s, r):
     L = torch.zeros((s.shape[0], 3, 3), dtype=torch.float, device="cuda")
+    # 将四元数转成旋转矩阵
     R = build_rotation(r)
-
+    # 将缩放因子s放在矩阵L的对角线上，构成缩放矩阵
     L[:,0,0] = s[:,0]
     L[:,1,1] = s[:,1]
     L[:,2,2] = s[:,2]
