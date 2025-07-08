@@ -53,8 +53,8 @@ class GaussianModel:
         self._rotation = torch.empty(0) #椭球的旋转
         self._opacity = torch.empty(0) #不透明度
         self.max_radii2D = torch.empty(0) #最大2D半径
-        self.xyz_gradient_accum = torch.empty(0)
-        self.denom = torch.empty(0)
+        self.xyz_gradient_accum = torch.empty(0)#累积每个高斯函数中心点的位置梯度（L2范数），用于指导高斯球进行“克隆”或者“分裂”
+        self.denom = torch.empty(0) #用于记录每个高斯球的梯度被累加了多少次
         self.optimizer = None
         self.percent_dense = 0 #初始化百分比密度为0
         self.spatial_lr_scale = 0 #初始化空间学习速率缩放为0
@@ -290,7 +290,7 @@ class GaussianModel:
                 group["params"][0] = nn.Parameter(group["params"][0][mask].requires_grad_(True))
                 optimizable_tensors[group["name"]] = group["params"][0]
         return optimizable_tensors
-
+    # 根据mask执行相应的优化操作，删除旧高斯球，添加新高斯球到优化器
     def prune_points(self, mask):
         valid_points_mask = ~mask
         optimizable_tensors = self._prune_optimizer(valid_points_mask)
@@ -306,7 +306,11 @@ class GaussianModel:
 
         self.denom = self.denom[valid_points_mask]
         self.max_radii2D = self.max_radii2D[valid_points_mask]
-
+    # 将新高斯球的参数（如位置、缩放、颜色等）告知优化器，并为它们初始化优化器状态
+    # tensors_dict 包含所有新建高斯球的属性张量
+    # 优化器状态：
+    # exp_avg：梯度累积，用于动量法
+    # exp_avg_sq：梯度平方累积，用于自适应学习率
     def cat_tensors_to_optimizer(self, tensors_dict):
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
@@ -328,7 +332,7 @@ class GaussianModel:
                 optimizable_tensors[group["name"]] = group["params"][0]
 
         return optimizable_tensors
-
+    # 高斯球克隆或者分裂后，重置高斯球的梯度和累积计数，以及最大2D半径 下一阶段训练中重新累积
     def densification_postfix(self, new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation):
         d = {"xyz": new_xyz,
         "f_dc": new_features_dc,
@@ -349,31 +353,39 @@ class GaussianModel:
         self.denom = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
+    # 梯度大，尺寸大的高斯球执行分裂
     def densify_and_split(self, grads, grad_threshold, scene_extent, N=2):
         n_init_points = self.get_xyz.shape[0]
         # Extract points that satisfy the gradient condition
         padded_grad = torch.zeros((n_init_points), device="cuda")
         padded_grad[:grads.shape[0]] = grads.squeeze()
+        # 判断其梯度是否大于阈值，并且每个椭球的三个轴的尺寸是否大于场景范围的百分比
         selected_pts_mask = torch.where(padded_grad >= grad_threshold, True, False)
         selected_pts_mask = torch.logical_and(selected_pts_mask,
                                               torch.max(self.get_scaling, dim=1).values > self.percent_dense*scene_extent)
 
-        stds = self.get_scaling[selected_pts_mask].repeat(N,1)
+        stds = self.get_scaling[selected_pts_mask].repeat(N,1)#假设选中M个高斯球，每个高斯球分裂成N个高斯球，stds形状为(M*N,3)
         means =torch.zeros((stds.size(0), 3),device="cuda")
+        # 从一个正态（高斯）分布中抽取随机样本 满足对应均值和方差
         samples = torch.normal(mean=means, std=stds)
+        # 旋转和父高斯球的旋转一致
         rots = build_rotation(self._rotation[selected_pts_mask]).repeat(N,1,1)
+        # 新高斯球的位置 = 父级高斯球的世界坐标 + 一个遵循父级高斯球形状和方向的随机位移
         new_xyz = torch.bmm(rots, samples.unsqueeze(-1)).squeeze(-1) + self.get_xyz[selected_pts_mask].repeat(N, 1)
+        # 根据父级高斯球的缩放值，计算每个新高斯球的缩放值 0.8*N 是缩放因子，用于控制新高斯球的缩放程度
         new_scaling = self.scaling_inverse_activation(self.get_scaling[selected_pts_mask].repeat(N,1) / (0.8*N))
+        # 其余参数属性与父级高斯球一致，仅复制
         new_rotation = self._rotation[selected_pts_mask].repeat(N,1)
         new_features_dc = self._features_dc[selected_pts_mask].repeat(N,1,1)
         new_features_rest = self._features_rest[selected_pts_mask].repeat(N,1,1)
         new_opacity = self._opacity[selected_pts_mask].repeat(N,1)
 
         self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacity, new_scaling, new_rotation)
-
+        # 标记要被分裂的原始父级高斯球（待删除 标记为True），以及后一步为所有新分裂出的子高斯球（标记为False）
         prune_filter = torch.cat((selected_pts_mask, torch.zeros(N * selected_pts_mask.sum(), device="cuda", dtype=bool)))
         self.prune_points(prune_filter)
-
+    # 梯度大，尺寸小的高斯球执行克隆  克隆操作本质上是给了模型一个新的“自由度”
+    # 为什么不添加随机平移？ 相信梯度，如果盲目猜测，这种猜测可能新的高斯球放在更糟糕的位置
     def densify_and_clone(self, grads, grad_threshold, scene_extent):
         # Extract points that satisfy the gradient condition
         # 对于每个点计算其梯度的L2范数，如果大于等于梯度阈值，标记为True,否则为False
@@ -392,21 +404,23 @@ class GaussianModel:
         self.densification_postfix(new_xyz, new_features_dc, new_features_rest, new_opacities, new_scaling, new_rotation)
     # 密集化与修剪操作
     def densify_and_prune(self, max_grad, min_opacity, extent, max_screen_size):
-        grads = self.xyz_gradient_accum / self.denom #计算密度估计的梯度
+        grads = self.xyz_gradient_accum / self.denom #计算高斯球的平均位置梯度
         grads[grads.isnan()] = 0.0
 
         self.densify_and_clone(grads, max_grad, extent)#重建不足的区域的小高斯分布执行clone
         self.densify_and_split(grads, max_grad, extent)#高方差区域的大高斯分布执行split
 
-        prune_mask = (self.get_opacity < min_opacity).squeeze()#创建一个掩码，标记那些透明度小于指定阈值的点。
+        prune_mask = (self.get_opacity < min_opacity).squeeze()#标记那些透明度小于指定阈值的点，这些点几乎是完全透明的 
         if max_screen_size:
-            big_points_vs = self.max_radii2D > max_screen_size #创建一个掩码，标记在图像空间中半径大于指定阈值的点
-            big_points_ws = self.get_scaling.max(dim=1).values > 0.1 * extent # #创建一个掩码，标记在世界空间中尺寸大于指定阈值的点
-            prune_mask = torch.logical_or(torch.logical_or(prune_mask, big_points_vs), big_points_ws)
+            big_points_vs = self.max_radii2D > max_screen_size #标记高斯球渲染的椭球半径大于指定阈值
+            big_points_ws = (
+                self.get_scaling.max(dim=1).values > 0.1 * extent
+            )  # 标记在世界空间中椭球最长轴的尺寸大于指定阈值的点，extent可以表示场景的边界范围或者大致直径
+            prune_mask = torch.logical_or(torch.logical_or(prune_mask, big_points_vs), big_points_ws) #合并掩码，标记不合理的高斯球
         self.prune_points(prune_mask)
 
         torch.cuda.empty_cache()
-
+    # 计算高斯球的梯度和对应的累积计数
     def add_densification_stats(self, viewspace_point_tensor, update_filter):
         self.xyz_gradient_accum[update_filter] += torch.norm(viewspace_point_tensor.grad[update_filter,:2], dim=-1, keepdim=True)
         self.denom[update_filter] += 1
