@@ -3,7 +3,7 @@
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
 #
-# This software is free for non-commercial, research and evaluation use 
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
 #
 # For inquiries contact  george.drettakis@inria.fr
@@ -61,10 +61,25 @@ def getProjectionMatrix(znear, zfar, fovX, fovY):
 
     z_sign = 1.0
 
+    # pytorch中矩阵张量存储是按照行主元存储的
+    # OpenGL、Fortran、GLSL等系统默认使用列主元存储
+    # 被传递给一个期望列主元数据的CUDA核函数时，CUDA会按照列主元的顺序去读取这块内存
+    # 为了让CUDA核函数能够正确读取，提前生成标准矩阵的转置形式
+    """
+    P = [1/tan(fovX/2)  0        0       0
+         0        1/tan(fovY/2)  0       0
+         0              0     f/f-n   -f*n/f-n
+         0              0        1       0].T
+     = [ 1/tan(fovX/2)  0        0       0
+         0        1/tan(fovY/2)  0       0
+         0              0     f/f-n   -f*n/f-n
+         0              0        1       0]
+    """
+
     P[0, 0] = 2.0 * znear / (right - left)
     P[1, 1] = 2.0 * znear / (top - bottom)
-    P[0, 2] = (right + left) / (right - left)
-    P[1, 2] = (top + bottom) / (top - bottom)
+    P[0, 2] = (right + left) / (right - left)  # viewing volume是对称的 实际是0
+    P[1, 2] = (top + bottom) / (top - bottom) 
     P[3, 2] = z_sign
     P[2, 2] = z_sign * zfar / (zfar - znear)
     P[2, 3] = -(zfar * znear) / (zfar - znear)

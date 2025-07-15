@@ -3,7 +3,7 @@
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
 #
-# This software is free for non-commercial, research and evaluation use 
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
 #
 # For inquiries contact  george.drettakis@inria.fr
@@ -42,6 +42,8 @@ class SceneInfo(NamedTuple):
     nerf_normalization: dict
     ply_path: str
 
+# 所有相机中心的平均位置，作为场景中心
+# 相机分布的最大半径，用于场景缩放
 def getNerfppNorm(cam_info):
     def get_center_and_diag(cam_centers):
         cam_centers = np.hstack(cam_centers)
@@ -51,6 +53,7 @@ def getNerfppNorm(cam_info):
         #每个相机计算与平均相机中心的距离
         dist = np.linalg.norm(cam_centers - center, axis=0, keepdims=True)
         #对角线是任何相机中心与平均中心之间的最大距离，本质上表示相机阵列在 3D 空间中的“扩展”或范围
+        #将最大距离作为对角线长度
         diagonal = np.max(dist)
         return center.flatten(), diagonal
 
@@ -82,6 +85,7 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
         width = intr.width
 
         uid = intr.id
+        # 将四元数转换为旋转矩阵 并转置
         R = np.transpose(qvec2rotmat(extr.qvec))
         T = np.array(extr.tvec)
 
@@ -117,16 +121,21 @@ def fetchPly(path):
 
 def storePly(path, xyz, rgb):
     # Define the dtype for the structured array
+    # x'：字段名称，这里是表示点云中点的x坐标
+    # f4：表示单精度浮点数，即32位浮点数
+    # u1：表示无符号整数，即8位整数，范围是0到255
     dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
             ('nx', 'f4'), ('ny', 'f4'), ('nz', 'f4'),
             ('red', 'u1'), ('green', 'u1'), ('blue', 'u1')]
-    
+
     normals = np.zeros_like(xyz)
 
     elements = np.empty(xyz.shape[0], dtype=dtype)
+    # 将xyz、normals和rgb拼接在一起，形成一个包含所有属性的数组
     attributes = np.concatenate((xyz, normals, rgb), axis=1)
+    # 将列表转成元组列表
+    # elements[:] = [tuple(row) for row in attributes]
     elements[:] = list(map(tuple, attributes))
-
     # Create the PlyData object and write to file
     vertex_element = PlyElement.describe(elements, 'vertex')
     ply_data = PlyData([vertex_element])
@@ -147,7 +156,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
     reading_dir = "images" if images == None else images
     cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir))
     cam_infos = sorted(cam_infos_unsorted.copy(), key = lambda x : x.image_name)
-
+    # 如果评估模式，将数据集分为训练集和测试集，测试集是每8帧中抽取一帧
     if eval:
         train_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold != 0]
         test_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold == 0]
@@ -178,7 +187,9 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
                            nerf_normalization=nerf_normalization,
                            ply_path=ply_path)
     return scene_info
-
+"""
+ 将带有透明背景的合成图像转换为具有坚实背景的不透明图像，以满足后续训练和渲染流程对数据格式的要求
+"""
 def readCamerasFromTransforms(path, transformsfile, white_background, extension=".png"):
     cam_infos = []
 
@@ -209,11 +220,13 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
             bg = np.array([1,1,1]) if white_background else np.array([0, 0, 0])
 
             norm_data = im_data / 255.0
+            # 去除图像的透明背景，并将其替换为执行的纯色背景
+            # 原图RGB * Alpha：根据不透明度，计算原始图像颜色应该保留多少。背景颜色 * (1 - Alpha)：根据透明度（1 - 不透明度），计算背景颜色应该透过来多少
             arr = norm_data[:,:,:3] * norm_data[:, :, 3:4] + bg * (1 - norm_data[:, :, 3:4])
             image = Image.fromarray(np.array(arr*255.0, dtype=np.byte), "RGB")
 
             fovy = focal2fov(fov2focal(fovx, image.size[0]), image.size[1])
-            FovY = fovy 
+            FovY = fovy
             FovX = fovx
 
             cam_infos.append(CameraInfo(uid=idx, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
@@ -226,11 +239,11 @@ def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
     train_cam_infos = readCamerasFromTransforms(path, "transforms_train.json", white_background, extension)
     print("Reading Test Transforms")
     test_cam_infos = readCamerasFromTransforms(path, "transforms_test.json", white_background, extension)
-    
+
     if not eval:
         train_cam_infos.extend(test_cam_infos)
         test_cam_infos = []
-
+    # 计算场景中心和场景范围半径
     nerf_normalization = getNerfppNorm(train_cam_infos)
 
     ply_path = os.path.join(path, "points3d.ply")
@@ -238,9 +251,11 @@ def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
         # Since this data set has no colmap data, we start with random points
         num_pts = 100_000
         print(f"Generating random point cloud ({num_pts})...")
-        
+
         # We create random points inside the bounds of the synthetic Blender scenes
+        # 将点的分布范围变换到[-1.3,1.3]
         xyz = np.random.random((num_pts, 3)) * 2.6 - 1.3
+        # 生成随机三维向量，值在 [0.0, 1.0) 之间。最低阶的颜色系数，它代表了物体的基础颜色   法线初始化为0
         shs = np.random.random((num_pts, 3)) / 255.0
         pcd = BasicPointCloud(points=xyz, colors=SH2RGB(shs), normals=np.zeros((num_pts, 3)))
 
@@ -258,6 +273,7 @@ def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
     return scene_info
 
 sceneLoadTypeCallbacks = {
-    "Colmap": readColmapSceneInfo,
-    "Blender" : readNerfSyntheticInfo
+    "Colmap": readColmapSceneInfo,  # COLMAP (Y down, Z forward)
+    "Blender": readNerfSyntheticInfo,  # Blender (Y up, Z back) 特定格式的json文件 直接定义每个图像的相机位姿和视野  位姿统一变换到 COLMAP格式 
+    #不提供初始化点云，随机生成一个点云 （例如，在 [-1.3, 1.3] 的立方体空间内生成 100,000 个随机点）
 }

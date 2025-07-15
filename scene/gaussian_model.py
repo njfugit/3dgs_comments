@@ -124,21 +124,28 @@ class GaussianModel:
             self.active_sh_degree += 1
 
     def create_from_pcd(self, pcd : BasicPointCloud, spatial_lr_scale : float):
-        self.spatial_lr_scale = spatial_lr_scale
+        self.spatial_lr_scale = spatial_lr_scale  # 用作位置参数（xyz）学习率的缩放因子，主要用于调整来自 SfM（Structure from Motion）的点云的稀疏或密集程度
         fused_point_cloud = torch.tensor(np.asarray(pcd.points)).float().cuda()
         fused_color = RGB2SH(torch.tensor(np.asarray(pcd.colors)).float().cuda())
         features = torch.zeros((fused_color.shape[0], 3, (self.max_sh_degree + 1) ** 2)).float().cuda()
+        # 将颜色信息存储在球谐函数的第0阶系数中
         features[:, :3, 0 ] = fused_color
         # bug 第二维初始为3 不存在3：
         # features[:, 3:, 1:] = 0.0
+        # 将球谐函数的高阶系数初始化为0
         features[:, :, 1:] = 0.0
         print("Number of points at initialisation : ", fused_point_cloud.shape[0])
         # 每个点到其最近邻点的平均距离 或者其他距离统计值
         dist2 = torch.clamp_min(distCUDA2(torch.from_numpy(np.asarray(pcd.points)).float().cuda()), 0.0000001)
+        # 取 log 是为了与 scaling_activation 函数（torch.exp）相对应
+        # 将计算出的尺度值复制3次，分别作为 x, y, z 三个轴的初始尺度，这意味着每个高斯球开始时都是各向同性的（即一个正球体）
         scales = torch.log(torch.sqrt(dist2))[...,None].repeat(1, 3)
+        # 一个四元数 (w, x, y, z) 表示一个旋转。当 w=1, x=y=z=0 时，代表一个单位旋转（identity rotation），即不进行任何旋转
         rots = torch.zeros((fused_point_cloud.shape[0], 4), device="cuda")
         rots[:, 0] = 1
-
+        # 不透明度的物理意义决定了值必须在 [0, 1] 这个区间内，如果使用优化器去更新这个参数会很麻烦，很容易超出这个范围夹在0或1
+        # 真正被优化的参数: self._opacity 使用 inverse_sigmoid 函数 无约束
+        # 实际使用时不透明度: sigmoid(self._opacity) (值在 (0, 1) 区间)
         opacities = inverse_sigmoid(0.1 * torch.ones((fused_point_cloud.shape[0], 1), dtype=torch.float, device="cuda"))
 
         self._xyz = nn.Parameter(fused_point_cloud.requires_grad_(True))
@@ -153,7 +160,11 @@ class GaussianModel:
         self.percent_dense = training_args.percent_dense
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
         self.denom = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
-
+        # 位置参数（xyz）学习率
+        # 球谐系数（f_dc,f_rest）学习率
+        # 不透明度参数（opacity）学习率
+        # 缩放参数（scaling）学习率
+        # 旋转参数（rotation）学习率
         l = [
             {'params': [self._xyz], 'lr': training_args.position_lr_init * self.spatial_lr_scale, "name": "xyz"},
             {'params': [self._features_dc], 'lr': training_args.feature_lr, "name": "f_dc"},
@@ -180,6 +191,7 @@ class GaussianModel:
     def construct_list_of_attributes(self):
         l = ['x', 'y', 'z', 'nx', 'ny', 'nz']
         # All channels except the 3 DC
+        # self._features_dc 的形状是 (N, C, D)  N 是高斯球数量，C 是颜色通道数（通常是3，代表R,G,B），D 是该阶系数的数量 dc D=1  rest D=3*[(self.max_sh_degree + 1) ** 2 - 1]
         for i in range(self._features_dc.shape[1]*self._features_dc.shape[2]):
             l.append('f_dc_{}'.format(i))
         for i in range(self._features_rest.shape[1]*self._features_rest.shape[2]):
