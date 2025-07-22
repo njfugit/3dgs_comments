@@ -73,19 +73,19 @@ class OptimizationParams(ParamGroup):
         self.iterations = 30_000
         self.position_lr_init = 0.00016
         self.position_lr_final = 0.0000016
-        self.position_lr_delay_mult = 0.01
+        self.position_lr_delay_mult = 0.01#位置学习率的延迟乘数。在训练的非常早期阶段（由 position_lr_max_steps 控制）
         self.position_lr_max_steps = 30_000
         self.feature_lr = 0.0025
         self.opacity_lr = 0.05
         self.scaling_lr = 0.005
         self.rotation_lr = 0.001
-        self.percent_dense = 0.01
-        self.lambda_dssim = 0.2
+        self.percent_dense = 0.01#梯度在前 percent_dense 百分位的高斯模型进行致密化
+        self.lambda_dssim = 0.2 #损失函数中 L1 损失和 D-SSIM (Structural Dissimilarity) 损失之间的权重
         self.densification_interval = 100
-        self.opacity_reset_interval = 3000
-        self.densify_from_iter = 500
-        self.densify_until_iter = 15_000
-        self.densify_grad_threshold = 0.0002
+        self.opacity_reset_interval = 3000# 不透明度重置的频率
+        self.densify_from_iter = 500# 从第 500 次迭代开始进行致密化
+        self.densify_until_iter = 15_000# 在第 15000 次迭代结束致密化
+        self.densify_grad_threshold = 0.0002# 梯度阈值，用于控制致密化过程
         self.random_background = False
         super().__init__(parser, "Optimization Parameters")
 

@@ -1,0 +1,18 @@
+CompileFlags:
+    Remove:
+        - "--expt-extended-lambda"
+       
+        - "-rdc=true"
+        - '-forward-unknown-to-host-compiler'
+        - '--expt-relaxed-constexpr'
+        - '--generate-code=arch=compute_70,code=[compute_70,sm_70]'
+        - '--generate-code=arch=compute_75,code=[compute_75,sm_75]'
+        - '--generate-code=arch=compute_86,code=[compute_86,sm_86]'
+        - '-forward-unknown-to-host-compiler'
+        - '-arch=native'
+        - '--options-file'
+        - '-Xcompiler=-fPIC'
+    Add: 
+        - '-std=c++17'
+        - '--cuda-gpu-arch=sm_75'
+    Compiler: clang++
