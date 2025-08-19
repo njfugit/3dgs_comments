@@ -1,7 +1,7 @@
 CompileFlags:
     Remove:
-        - "--expt-extended-lambda"
-       
+        - "--extended-lambda"
+        - "-gencode"
         - "-rdc=true"
         - '-forward-unknown-to-host-compiler'
         - '--expt-relaxed-constexpr'
@@ -13,6 +13,6 @@ CompileFlags:
         - '--options-file'
         - '-Xcompiler=-fPIC'
     Add: 
-        - '-std=c++17'
+        - '-xcuda'
+        - '--cuda-path=/usr/local/cuda-11.3'
         - '--cuda-gpu-arch=sm_75'
-    Compiler: clang++
