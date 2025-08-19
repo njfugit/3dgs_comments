@@ -1,124 +1,201 @@
 # 3D Gaussian Splatting for Real-Time Radiance Field Rendering
-Bernhard Kerbl*, Georgios Kopanas*, Thomas Leimkühler, George Drettakis (* indicates equal contribution)<br>
-| [Webpage](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) | [Full Paper](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/3d_gaussian_splatting_high.pdf) | [Video](https://youtu.be/T_kXY43VZnk) | [Other GRAPHDECO Publications](http://www-sop.inria.fr/reves/publis/gdindex.php) | [FUNGRAPH project page](https://fungraph.inria.fr) |<br>
-| [T&T+DB COLMAP (650MB)](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip) | [Pre-trained Models (14 GB)](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/pretrained/models.zip) | [Viewers for Windows (60MB)](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/binaries/viewers.zip) | [Evaluation Images (7 GB)](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/evaluation/images.zip) |<br>
+
+Bernhard Kerbl*, Georgios Kopanas*, Thomas Leimkühler, George Drettakis (* indicates equal contribution)
+
+| [Webpage](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/) | [Full Paper](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/3d_gaussian_splatting_high.pdf) | [Video](https://youtu.be/T_kXY43VZnk) | [Other GRAPHDECO Publications](http://www-sop.inria.fr/reves/publis/gdindex.php) | [FUNGRAPH project page](https://fungraph.inria.fr) |
+|---|---|---|---|---|
+| [T&T+DB COLMAP (650MB)](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip) | [Pre-trained Models (14 GB)](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/pretrained/models.zip) | [Viewers for Windows (60MB)](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/binaries/viewers.zip) | [Evaluation Images (7 GB)](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/evaluation/images.zip) |
+
 ![Teaser image](assets/teaser.png)
 
-This repository contains the official authors implementation associated with the paper "3D Gaussian Splatting for Real-Time Radiance Field Rendering", which can be found [here](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/). We further provide the reference images used to create the error metrics reported in the paper, as well as recently created, pre-trained models. 
+This repository contains the official authors' implementation associated with the paper "3D Gaussian Splatting for Real-Time Radiance Field Rendering". We further provide the reference images used to create the error metrics reported in the paper, as well as recently created, pre-trained models.
 
-<a href="https://www.inria.fr/"><img height="100" src="assets/logo_inria.png"> </a>
-<a href="https://univ-cotedazur.eu/"><img height="100" src="assets/logo_uca.png"> </a>
-<a href="https://www.mpi-inf.mpg.de"><img height="100" src="assets/logo_mpi.png"> </a> 
-<a href="https://team.inria.fr/graphdeco/"> <img style="width:100%;" src="assets/logo_graphdeco.png"></a>
+<a href="https://www.inria.fr/"><img height="100" src="assets/logo_inria.png"></a>
+<a href="https://univ-cotedazur.eu/"><img height="100" src="assets/logo_uca.png"></a>
+<a href="https://www.mpi-inf.mpg.de"><img height="100" src="assets/logo_mpi.png"></a>
+<a href="https://team.inria.fr/graphdeco/"><img style="width:100%;" src="assets/logo_graphdeco.png"></a>
 
-Abstract: *Radiance Field methods have recently revolutionized novel-view synthesis of scenes captured with multiple photos or videos. However, achieving high visual quality still requires neural networks that are costly to train and render, while recent faster methods inevitably trade off speed for quality. For unbounded and complete scenes (rather than isolated objects) and 1080p resolution rendering, no current method can achieve real-time display rates. We introduce three key elements that allow us to achieve state-of-the-art visual quality while maintaining competitive training times and importantly allow high-quality real-time (≥ 30 fps) novel-view synthesis at 1080p resolution. First, starting from sparse points produced during camera calibration, we represent the scene with 3D Gaussians that preserve desirable properties of continuous volumetric radiance fields for scene optimization while avoiding unnecessary computation in empty space; Second, we perform interleaved optimization/density control of the 3D Gaussians, notably optimizing anisotropic covariance to achieve an accurate representation of the scene; Third, we develop a fast visibility-aware rendering algorithm that supports anisotropic splatting and both accelerates training and allows realtime rendering. We demonstrate state-of-the-art visual quality and real-time rendering on several established datasets.*
+## Table of Contents
 
-<section class="section" id="BibTeX">
-  <div class="container is-max-desktop content">
-    <h2 class="title">BibTeX</h2>
-    <pre><code>@Article{kerbl3Dgaussians,
-      author       = {Kerbl, Bernhard and Kopanas, Georgios and Leimk{\"u}hler, Thomas and Drettakis, George},
-      title        = {3D Gaussian Splatting for Real-Time Radiance Field Rendering},
-      journal      = {ACM Transactions on Graphics},
-      number       = {4},
-      volume       = {42},
-      month        = {July},
-      year         = {2023},
-      url          = {https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/}
-}</code></pre>
-  </div>
-</section>
+- [How it Works](#how-it-works)
+- [Project Structure](#project-structure)
+- [Cloning the Repository](#cloning-the-repository)
+- [Setup](#setup)
+  - [Optimizer Setup](#optimizer-setup)
+  - [Viewer Setup](#viewer-setup)
+- [Running the Optimizer](#running-the-optimizer)
+- [Evaluation](#evaluation)
+- [Interactive Viewers](#interactive-viewers)
+- [Processing your own Scenes](#processing-your-own-scenes)
+- [FAQ](#faq)
+- [Acknowledgements](#acknowledgements)
+- [BibTeX](#bibtex)
 
+## How it Works
 
-## Funding and Acknowledgments
+Radiance Field methods have recently revolutionized novel-view synthesis of scenes captured with multiple photos or videos. However, achieving high visual quality still requires neural networks that are costly to train and render, while recent faster methods inevitably trade off speed for quality. For unbounded and complete scenes (rather than isolated objects) and 1080p resolution rendering, no current method can achieve real-time display rates.
 
-This research was funded by the ERC Advanced grant FUNGRAPH No 788065. The authors are grateful to Adobe for generous donations, the OPAL infrastructure from Université Côte d’Azur and for the HPC resources from GENCI–IDRIS (Grant 2022-AD011013409). The authors thank the anonymous reviewers for their valuable feedback, P. Hedman and A. Tewari for proofreading earlier drafts also T. Müller, A. Yu and S. Fridovich-Keil for helping with the comparisons.
+This project introduces three key elements to achieve state-of-the-art visual quality while maintaining competitive training times and allowing high-quality real-time (≥ 30 fps) novel-view synthesis at 1080p resolution:
 
-## Step-by-step Tutorial
+1.  **3D Gaussian Representation:** Starting from sparse points produced during camera calibration, the scene is represented with 3D Gaussians. This representation preserves the desirable properties of continuous volumetric radiance fields for scene optimization while avoiding unnecessary computation in empty space.
+2.  **Interleaved Optimization and Density Control:** The 3D Gaussians are optimized with interleaved optimization and density control. This includes optimizing anisotropic covariance to achieve an accurate representation of the scene.
+3.  **Fast Visibility-Aware Rendering:** A fast, visibility-aware rendering algorithm is used, which supports anisotropic splatting. This both accelerates training and allows for real-time rendering.
 
-Jonathan Stephens made a fantastic step-by-step tutorial for setting up Gaussian Splatting on your machine, along with instructions for creating usable datasets from videos. If the instructions below are too dry for you, go ahead and check it out [here](https://www.youtube.com/watch?v=UXtuigy_wYc).
+## Project Structure
 
-## Colab
+The repository is organized as follows:
 
-User [camenduru](https://github.com/camenduru) was kind enough to provide a Colab template that uses this repo's source (status: August 2023!) for quick and easy access to the method. Please check it out [here](https://github.com/camenduru/gaussian-splatting-colab).
+```
+├── assets/
+├── gaussian_renderer/
+├── scene/
+├── utils/
+├── SIBR_viewers/
+├── submodules/
+│   ├── diff-gaussian-rasterization/
+│   └── simple-knn/
+├── train.py
+├── render.py
+├── metrics.py
+├── full_eval.py
+├── convert.py
+└── environment.yml
+```
+
+-   `assets/`: Contains images and logos used in the `README.md` file.
+-   `gaussian_renderer/`: Contains the core differentiable Gaussian rasterizer.
+-   `scene/`: Contains code for representing the 3D scene, including the Gaussian model and camera information.
+-   `utils/`: Contains utility functions for various tasks, such as system operations, image processing, and loss calculations.
+-   `SIBR_viewers/`: Contains the source code for the interactive viewers, based on the SIBR framework.
+-   `submodules/`: Contains the submodules for the differentiable Gaussian rasterization and k-NN search.
+-   `train.py`: The main script for training the 3D Gaussian Splatting model.
+-   `render.py`: The script for rendering images from a trained model.
+-   `metrics.py`: The script for computing evaluation metrics (L1, PSNR, SSIM) on the rendered images.
+-   `full_eval.py`: A script for running the full evaluation pipeline (training, rendering, and metrics).
+-   `convert.py`: A script for converting your own images into the required COLMAP format.
+-   `environment.yml`: The Conda environment file for setting up the required dependencies.
 
 ## Cloning the Repository
 
-The repository contains submodules, thus please check it out with 
+The repository contains submodules, so please clone it recursively:
+
 ```shell
 # SSH
 git clone git@github.com:graphdeco-inria/gaussian-splatting.git --recursive
 ```
+
 or
+
 ```shell
 # HTTPS
 git clone https://github.com/graphdeco-inria/gaussian-splatting --recursive
 ```
 
-## Overview
+## Setup
 
-The codebase has 4 main components:
-- A PyTorch-based optimizer to produce a 3D Gaussian model from SfM inputs
-- A network viewer that allows to connect to and visualize the optimization process
-- An OpenGL-based real-time viewer to render trained models in real-time.
-- A script to help you turn your own images into optimization-ready SfM data sets
+The project has two main components with different setup requirements: the PyTorch-based optimizer and the C++/CUDA-based viewers.
 
-The components have different requirements w.r.t. both hardware and software. They have been tested on Windows 10 and Ubuntu Linux 22.04. Instructions for setting up and running each of them are found in the sections below.
+### Optimizer Setup
 
-## New features  [Please check regularly!]
+The optimizer is used to train the 3D Gaussian Splatting models.
 
-We will be adding several new features soon. In the meantime Orange has kindly added [OpenXR support](#openXR-support) for VR viewing. Please come back soon, we will be adding other features, building among others on recent 3DGS followup papers.
+#### Hardware Requirements
 
-## Optimizer
+-   CUDA-ready GPU with Compute Capability 7.0+
+-   24 GB of VRAM (for training to the quality reported in the paper)
 
-The optimizer uses PyTorch and CUDA extensions in a Python environment to produce trained models. 
+#### Software Requirements
 
-### Hardware Requirements
+-   Conda
+-   C++ Compiler (Visual Studio 2019 on Windows)
+-   CUDA SDK 11 (we used 11.8; known issues with 11.6)
 
-- CUDA-ready GPU with Compute Capability 7.0+
-- 24 GB VRAM (to train to paper evaluation quality)
-- Please see FAQ for smaller VRAM configurations
+#### Installation
 
-### Software Requirements
-- Conda (recommended for easy setup)
-- C++ Compiler for PyTorch extensions (we used Visual Studio 2019 for Windows)
-- CUDA SDK 11 for PyTorch extensions, install *after* Visual Studio (we used 11.8, **known issues with 11.6**)
-- C++ Compiler and CUDA SDK must be compatible
+We recommend using Conda to set up the environment:
 
-### Setup
-
-#### Local Setup
-
-Our default, provided install method is based on Conda package and environment management:
 ```shell
-SET DISTUTILS_USE_SDK=1 # Windows only
+# On Windows, you might need to set this environment variable
+SET DISTUTILS_USE_SDK=1
+
+# Create and activate the conda environment
 conda env create --file environment.yml
 conda activate gaussian_splatting
 ```
-Please note that this process assumes that you have CUDA SDK **11** installed, not **12**. For modifications, see below.
 
-Tip: Downloading packages and creating a new environment with Conda can require a significant amount of disk space. By default, Conda will use the main system hard drive. You can avoid this by specifying a different package download location and an environment on a different drive:
+The `environment.yml` file contains the following dependencies:
 
-```shell
-conda config --add pkgs_dirs <Drive>/<pkg_path>
-conda env create --file environment.yml --prefix <Drive>/<env_path>/gaussian_splatting
-conda activate <Drive>/<env_path>/gaussian_splatting
+```yaml
+name: gaussian_splatting
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - cudatoolkit=11.6
+  - plyfile
+  - python=3.7.13
+  - pip=22.3.1
+  - pytorch=1.12.1
+  - torchaudio=0.12.1
+  - torchvision=0.13.1
+  - tqdm
+  - pip:
+    - submodules/diff-gaussian-rasterization
+    - submodules/simple-knn
 ```
 
-#### Modifications
+### Viewer Setup
 
-If you can afford the disk space, we recommend using our environment files for setting up a training environment identical to ours. If you want to make modifications, please note that major version changes might affect the results of our method. However, our (limited) experiments suggest that the codebase works just fine inside a more up-to-date environment (Python 3.8, PyTorch 2.0.0, CUDA 12). Make sure to create an environment where PyTorch and its CUDA runtime version match and the installed CUDA SDK has no major version difference with PyTorch's CUDA version.
+The viewers are used to visualize the training process and render the trained models in real-time.
 
-#### Known Issues
+#### Hardware Requirements
 
-Some users experience problems building the submodules on Windows (```cl.exe: File not found``` or similar). Please consider the workaround for this problem from the FAQ.
+-   OpenGL 4.5-ready GPU
+-   4 GB of VRAM (recommended)
+-   CUDA-ready GPU with Compute Capability 7.0+ (for the real-time viewer)
 
-### Running
+#### Software Requirements
 
-To run the optimizer, simply use
+-   C++ Compiler (Visual Studio 2019 on Windows, g++ on Linux)
+-   CUDA SDK 11 (we used 11.8)
+-   CMake (we used 3.24)
+-   7zip (Windows only)
+
+#### Pre-built Binaries for Windows
+
+We provide pre-built binaries for Windows, which you can download from [here](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/binaries/viewers.zip). This is the recommended way to get the viewers on Windows.
+
+#### Building from Source
+
+If you want to build the viewers from source, you can find the source code in the `SIBR_viewers` directory.
+
+**Windows:**
 
 ```shell
-python train.py -s <path to COLMAP or NeRF Synthetic dataset>
+cd SIBR_viewers
+cmake -Bbuild .
+cmake --build build --target install --config RelWithDebInfo
+```
+
+**Ubuntu 22.04:**
+
+```shell
+# Install dependencies
+sudo apt install -y libglew-dev libassimp-dev libboost-all-dev libgtk-3-dev libopencv-dev libglfw3-dev libavdevice-dev libavcodec-dev libeigen3-dev libxxf86vm-dev libembree-dev
+
+# Build the project
+cd SIBR_viewers
+cmake -Bbuild . -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j24 --target install
+```
+
+## Running the Optimizer
+
+To run the optimizer, use the `train.py` script:
+
+```shell
+python train.py -s <path_to_colmap_or_nerf_synthetic_dataset>
 ```
 
 <details>
@@ -196,25 +273,39 @@ python train.py -s <path to COLMAP or NeRF Synthetic dataset>
   Percentage of scene extent (0--1) a point must exceed to be forcibly densified, ```0.01``` by default.
 
 </details>
-<br>
 
-Note that similar to MipNeRF360, we target images at resolutions in the 1-1.6K pixel range. For convenience, arbitrary-size inputs can be passed and will be automatically resized if their width exceeds 1600 pixels. We recommend to keep this behavior, but you may force training to use your higher-resolution images by setting ```-r 1```.
+## Evaluation
 
-The MipNeRF360 scenes are hosted by the paper authors [here](https://jonbarron.info/mipnerf360/). You can find our SfM data sets for Tanks&Temples and Deep Blending [here](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/input/tandt_db.zip). If you do not provide an output model directory (```-m```), trained models are written to folders with randomized unique names inside the ```output``` directory. At this point, the trained models may be viewed with the real-time viewer (see further below).
+To evaluate a trained model, you can use the `render.py` and `metrics.py` scripts:
 
-### Evaluation
-By default, the trained models use all available images in the dataset. To train them while withholding a test set for evaluation, use the ```--eval``` flag. This way, you can render training/test sets and produce error metrics as follows:
 ```shell
-python train.py -s <path to COLMAP or NeRF Synthetic dataset> --eval # Train with train/test split
-python render.py -m <path to trained model> # Generate renderings
-python metrics.py -m <path to trained model> # Compute error metrics on renderings
+# Render the test set
+python render.py -m <path_to_trained_model>
+
+# Compute metrics
+python metrics.py -m <path_to_trained_model>
 ```
 
-If you want to evaluate our [pre-trained models](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/pretrained/models.zip), you will have to download the corresponding source data sets and indicate their location to ```render.py``` with an additional ```--source_path/-s``` flag. Note: The pre-trained models were created with the release codebase. This code base has been cleaned up and includes bugfixes, hence the metrics you get from evaluating them will differ from those in the paper.
-```shell
-python render.py -m <path to pre-trained model> -s <path to COLMAP dataset>
-python metrics.py -m <path to pre-trained model>
-```
+We also provide a `full_eval.py` script to run the complete evaluation pipeline.
+
+<details>
+<summary><span style="font-weight: bold;">Command Line Arguments for full_eval.py</span></summary>
+
+  #### --skip_training
+  Flag to skip training stage.
+  #### --skip_rendering
+  Flag to skip rendering stage.
+  #### --skip_metrics
+  Flag to skip metrics calculation stage.
+  #### --output_path
+  Directory to put renderings and results in, ```./eval``` by default, set to pre-trained model location if evaluating them.
+  #### --mipnerf360 / -m360
+  Path to MipNeRF360 source datasets, required if training or rendering.
+  #### --tanksandtemples / -tat
+  Path to Tanks&Temples source datasets, required if training or rendering.
+  #### --deepblending / -db
+  Path to Deep Blending source datasets, required if training or rendering.
+</details>
 
 <details>
 <summary><span style="font-weight: bold;">Command Line Arguments for render.py</span></summary>
@@ -253,214 +344,28 @@ python metrics.py -m <path to pre-trained model>
   #### --model_paths / -m 
   Space-separated list of model paths for which metrics should be computed.
 </details>
-<br>
-
-We further provide the ```full_eval.py``` script. This script specifies the routine used in our evaluation and demonstrates the use of some additional parameters, e.g., ```--images (-i)``` to define alternative image directories within COLMAP data sets. If you have downloaded and extracted all the training data, you can run it like this:
-```shell
-python full_eval.py -m360 <mipnerf360 folder> -tat <tanks and temples folder> -db <deep blending folder>
-```
-In the current version, this process takes about 7h on our reference machine containing an A6000. If you want to do the full evaluation on our pre-trained models, you can specify their download location and skip training. 
-```shell
-python full_eval.py -o <directory with pretrained models> --skip_training -m360 <mipnerf360 folder> -tat <tanks and temples folder> -db <deep blending folder>
-```
-
-If you want to compute the metrics on our paper's [evaluation images](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/evaluation/images.zip), you can also skip rendering. In this case it is not necessary to provide the source datasets. You can compute metrics for multiple image sets at a time. 
-```shell
-python full_eval.py -m <directory with evaluation images>/garden ... --skip_training --skip_rendering
-```
-
-<details>
-<summary><span style="font-weight: bold;">Command Line Arguments for full_eval.py</span></summary>
-  
-  #### --skip_training
-  Flag to skip training stage.
-  #### --skip_rendering
-  Flag to skip rendering stage.
-  #### --skip_metrics
-  Flag to skip metrics calculation stage.
-  #### --output_path
-  Directory to put renderings and results in, ```./eval``` by default, set to pre-trained model location if evaluating them.
-  #### --mipnerf360 / -m360
-  Path to MipNeRF360 source datasets, required if training or rendering.
-  #### --tanksandtemples / -tat
-  Path to Tanks&Temples source datasets, required if training or rendering.
-  #### --deepblending / -db
-  Path to Deep Blending source datasets, required if training or rendering.
-</details>
-<br>
 
 ## Interactive Viewers
-We provide two interactive viewers for our method: remote and real-time. Our viewing solutions are based on the [SIBR](https://sibr.gitlabpages.inria.fr/) framework, developed by the GRAPHDECO group for several novel-view synthesis projects.
 
-### Hardware Requirements
-- OpenGL 4.5-ready GPU and drivers (or latest MESA software)
-- 4 GB VRAM recommended
-- CUDA-ready GPU with Compute Capability 7.0+ (only for Real-Time Viewer)
+We provide two interactive viewers:
 
-### Software Requirements
-- Visual Studio or g++, **not Clang** (we used Visual Studio 2019 for Windows)
-- CUDA SDK 11, install *after* Visual Studio (we used 11.8)
-- CMake (recent version, we used 3.24)
-- 7zip (only on Windows)
+-   **Network Viewer:** Connects to a running training process and visualizes the optimization in real-time.
+-   **Real-time Viewer:** Renders a trained model in real-time.
 
-### Pre-built Windows Binaries
-We provide pre-built binaries for Windows [here](https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/binaries/viewers.zip). We recommend using them on Windows for an efficient setup, since the building of SIBR involves several external dependencies that must be downloaded and compiled on-the-fly.
-
-### Installation from Source
-If you cloned with submodules (e.g., using ```--recursive```), the source code for the viewers is found in ```SIBR_viewers```. The network viewer runs within the SIBR framework for Image-based Rendering applications.
-
-#### Windows
-CMake should take care of your dependencies.
-```shell
-cd SIBR_viewers
-cmake -Bbuild .
-cmake --build build --target install --config RelWithDebInfo
-```
-You may specify a different configuration, e.g. ```Debug``` if you need more control during development.
-
-#### Ubuntu 22.04
-You will need to install a few dependencies before running the project setup.
-```shell
-# Dependencies
-sudo apt install -y libglew-dev libassimp-dev libboost-all-dev libgtk-3-dev libopencv-dev libglfw3-dev libavdevice-dev libavcodec-dev libeigen3-dev libxxf86vm-dev libembree-dev
-# Project setup
-cd SIBR_viewers
-cmake -Bbuild . -DCMAKE_BUILD_TYPE=Release # add -G Ninja to build faster
-cmake --build build -j24 --target install
-``` 
-
-#### Ubuntu 20.04
-Backwards compatibility with Focal Fossa is not fully tested, but building SIBR with CMake should still work after invoking
-```shell
-git checkout fossa_compatibility
-```
-
-### Navigation in SIBR Viewers
-The SIBR interface provides several methods of navigating the scene. By default, you will be started with an FPS navigator, which you can control with ```W, A, S, D, Q, E``` for camera translation and ```I, K, J, L, U, O``` for rotation. Alternatively, you may want to use a Trackball-style navigator (select from the floating menu). You can also snap to a camera from the data set with the ```Snap to``` button or find the closest camera with ```Snap to closest```. The floating menues also allow you to change the navigation speed. You can use the ```Scaling Modifier``` to control the size of the displayed Gaussians, or show the initial point cloud.
-
-### Running the Network Viewer
-
-
-
-https://github.com/graphdeco-inria/gaussian-splatting/assets/40643808/90a2e4d3-cf2e-4633-b35f-bfe284e28ff7
-
-
-
-After extracting or installing the viewers, you may run the compiled ```SIBR_remoteGaussian_app[_config]``` app in ```<SIBR install dir>/bin```, e.g.: 
-```shell
-./<SIBR install dir>/bin/SIBR_remoteGaussian_app
-```
-The network viewer allows you to connect to a running training process on the same or a different machine. If you are training on the same machine and OS, no command line parameters should be required: the optimizer communicates the location of the training data to the network viewer. By default, optimizer and network viewer will try to establish a connection on **localhost** on port **6009**. You can change this behavior by providing matching ```--ip``` and ```--port``` parameters to both the optimizer and the network viewer. If for some reason the path used by the optimizer to find the training data is not reachable by the network viewer (e.g., due to them running on different (virtual) machines), you may specify an override location to the viewer by using ```-s <source path>```. 
-
-<details>
-<summary><span style="font-weight: bold;">Primary Command Line Arguments for Network Viewer</span></summary>
-
-  #### --path / -s
-  Argument to override model's path to source dataset.
-  #### --ip
-  IP to use for connection to a running training script.
-  #### --port
-  Port to use for connection to a running training script. 
-  #### --rendering-size 
-  Takes two space separated numbers to define the resolution at which network rendering occurs, ```1200``` width by default.
-  Note that to enforce an aspect that differs from the input images, you need ```--force-aspect-ratio``` too.
-  #### --load_images
-  Flag to load source dataset images to be displayed in the top view for each camera.
-</details>
-<br>
-
-### Running the Real-Time Viewer
-
-
-
-
-https://github.com/graphdeco-inria/gaussian-splatting/assets/40643808/0940547f-1d82-4c2f-a616-44eabbf0f816
-
-
-
-
-After extracting or installing the viewers, you may run the compiled ```SIBR_gaussianViewer_app[_config]``` app in ```<SIBR install dir>/bin```, e.g.: 
-```shell
-./<SIBR install dir>/bin/SIBR_gaussianViewer_app -m <path to trained model>
-```
-
-It should suffice to provide the ```-m``` parameter pointing to a trained model directory. Alternatively, you can specify an override location for training input data using ```-s```. To use a specific resolution other than the auto-chosen one, specify ```--rendering-size <width> <height>```. Combine it with ```--force-aspect-ratio``` if you want the exact resolution and don't mind image distortion. 
-
-**To unlock the full frame rate, please disable V-Sync on your machine and also in the application (Menu &rarr; Display). In a multi-GPU system (e.g., laptop) your OpenGL/Display GPU should be the same as your CUDA GPU (e.g., by setting the application's GPU preference on Windows, see below) for maximum performance.**
-
-![Teaser image](assets/select.png)
-
-In addition to the initial point cloud and the splats, you also have the option to visualize the Gaussians by rendering them as ellipsoids from the floating menu.
-SIBR has many other functionalities, please see the [documentation](https://sibr.gitlabpages.inria.fr/) for more details on the viewer, navigation options etc. There is also a Top View (available from the menu) that shows the placement of the input cameras and the original SfM point cloud; please note that Top View slows rendering when enabled. The real-time viewer also uses slightly more aggressive, fast culling, which can be toggled in the floating menu. If you ever encounter an issue that can be solved by turning fast culling off, please let us know.
-
-<details>
-<summary><span style="font-weight: bold;">Primary Command Line Arguments for Real-Time Viewer</span></summary>
-
-  #### --model-path / -m
-  Path to trained model.
-  #### --iteration
-  Specifies which of state to load if multiple are available. Defaults to latest available iteration.
-  #### --path / -s
-  Argument to override model's path to source dataset.
-  #### --rendering-size 
-  Takes two space separated numbers to define the resolution at which real-time rendering occurs, ```1200``` width by default. Note that to enforce an aspect that differs from the input images, you need ```--force-aspect-ratio``` too.
-  #### --load_images
-  Flag to load source dataset images to be displayed in the top view for each camera.
-  #### --device
-  Index of CUDA device to use for rasterization if multiple are available, ```0``` by default.
-  #### --no_interop
-  Disables CUDA/GL interop forcibly. Use on systems that may not behave according to spec (e.g., WSL2 with MESA GL 4.5 software rendering).
-</details>
-<br>
+To run the viewers, execute the corresponding applications from the `install/bin` directory inside `SIBR_viewers`.
 
 ## Processing your own Scenes
 
-Our COLMAP loaders expect the following dataset structure in the source path location:
+You can process your own images to create a dataset suitable for training. You will need to have COLMAP and ImageMagick installed.
 
-```
-<location>
-|---images
-|   |---<image 0>
-|   |---<image 1>
-|   |---...
-|---sparse
-    |---0
-        |---cameras.bin
-        |---images.bin
-        |---points3D.bin
-```
+1.  Place your images in a directory `<location>/input`.
+2.  Run the `convert.py` script:
 
-For rasterization, the camera models must be either a SIMPLE_PINHOLE or PINHOLE camera. We provide a converter script ```convert.py```, to extract undistorted images and SfM information from input images. Optionally, you can use ImageMagick to resize the undistorted images. This rescaling is similar to MipNeRF360, i.e., it creates images with 1/2, 1/4 and 1/8 the original resolution in corresponding folders. To use them, please first install a recent version of COLMAP (ideally CUDA-powered) and ImageMagick. Put the images you want to use in a directory ```<location>/input```.
-```
-<location>
-|---input
-    |---<image 0>
-    |---<image 1>
-    |---...
-```
- If you have COLMAP and ImageMagick on your system path, you can simply run 
 ```shell
-python convert.py -s <location> [--resize] #If not resizing, ImageMagick is not needed
+python convert.py -s <location>
 ```
-Alternatively, you can use the optional parameters ```--colmap_executable``` and ```--magick_executable``` to point to the respective paths. Please note that on Windows, the executable should point to the COLMAP ```.bat``` file that takes care of setting the execution environment. Once done, ```<location>``` will contain the expected COLMAP data set structure with undistorted, resized input images, in addition to your original images and some temporary (distorted) data in the directory ```distorted```.
 
-If you have your own COLMAP dataset without undistortion (e.g., using ```OPENCV``` camera), you can try to just run the last part of the script: Put the images in ```input``` and the COLMAP info in a subdirectory ```distorted```:
-```
-<location>
-|---input
-|   |---<image 0>
-|   |---<image 1>
-|   |---...
-|---distorted
-    |---database.db
-    |---sparse
-        |---0
-            |---...
-```
-Then run 
-```shell
-python convert.py -s <location> --skip_matching [--resize] #If not resizing, ImageMagick is not needed
-```
+This will create a COLMAP dataset in the required format.
 
 <details>
 <summary><span style="font-weight: bold;">Command Line Arguments for convert.py</span></summary>
@@ -480,12 +385,6 @@ python convert.py -s <location> --skip_matching [--resize] #If not resizing, Ima
   #### --magick_executable
   Path to the ImageMagick executable.
 </details>
-<br>
-
-### OpenXR support
-
-OpenXR is supported in the branch gaussian_code_release_openxr 
-Within that branch, you can find documentation for VR support [here](https://gitlab.inria.fr/sibr/sibr_core/-/tree/gaussian_code_release_openxr?ref_type=heads).
 
 ## FAQ
 - *Where do I get data sets, e.g., those referenced in ```full_eval.py```?* The MipNeRF360 data set is provided by the authors of the original paper on the project site. Note that two of the data sets cannot be openly shared and require you to consult the authors directly. For Tanks&Temples and Deep Blending, please use the download links provided at the top of the page. Alternatively, you may access the cloned data (status: August 2023!) from [HuggingFace](https://huggingface.co/camenduru/gaussian-splatting)
@@ -520,3 +419,22 @@ pip install submodules\simple-knn
 - *Wait, but ```<insert feature>``` isn't optimized and could be much better?* There are several parts we didn't even have time to think about improving (yet). The performance you get with this prototype is probably a rather slow baseline for what is physically possible.
 
 - *Something is broken, how did this happen?* We tried hard to provide a solid and comprehensible basis to make use of the paper's method. We have refactored the code quite a bit, but we have limited capacity to test all possible usage scenarios. Thus, if part of the website, the code or the performance is lacking, please create an issue. If we find the time, we will do our best to address it.
+
+## Acknowledgements
+
+This research was funded by the ERC Advanced grant FUNGRAPH No 788065. The authors are grateful to Adobe for generous donations, the OPAL infrastructure from Université Côte d’Azur and for the HPC resources from GENCI–IDRIS (Grant 2022-AD011013409). The authors thank the anonymous reviewers for their valuable feedback, P. Hedman and A. Tewari for proofreading earlier drafts also T. Müller, A. Yu and S. Fridovich-Keil for helping with the comparisons.
+
+## BibTeX
+
+```bibtex
+@Article{kerbl3Dgaussians,
+      author       = {Kerbl, Bernhard and Kopanas, Georgios and Leimk{\"u}hler, Thomas and Drettakis, George},
+      title        = {3D Gaussian Splatting for Real-Time Radiance Field Rendering},
+      journal      = {ACM Transactions on Graphics},
+      number       = {4},
+      volume       = {42},
+      month        = {July},
+      year         = {2023},
+      url          = {https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/}
+}
+```
