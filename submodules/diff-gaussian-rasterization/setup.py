@@ -13,7 +13,8 @@ from setuptools import setup
 from torch.utils.cpp_extension import CUDAExtension, BuildExtension
 import os
 os.path.dirname(os.path.abspath(__file__))
-
+#使用PyTorch的CUDAExtension将CUDA代码编译为Python可调用的扩展模块
+#编译后生成_C.cpython-37m-x86_64-linux-gnu.so动态库
 setup(
     name="diff_gaussian_rasterization",
     packages=['diff_gaussian_rasterization'],
