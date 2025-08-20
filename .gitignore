@@ -9,3 +9,5 @@ screenshots
 data
 .cache
 *.so
+*.egg-info
+*.egg

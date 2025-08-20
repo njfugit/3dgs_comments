@@ -66,10 +66,12 @@ def getProjectionMatrix(znear, zfar, fovX, fovY):
     # 被传递给一个期望列主元数据的CUDA核函数时，CUDA会按照列主元的顺序去读取这块内存
     # 为了让CUDA核函数能够正确读取，提前生成标准矩阵的转置形式
     """
+    上面是行主序
+    下面是列主序
     P = [1/tan(fovX/2)  0        0       0
          0        1/tan(fovY/2)  0       0
-         0              0     f/f-n   -f*n/f-n
-         0              0        1       0].T
+         0              0     f/f-n      1
+         0              0    -f*n/f-n    0].T
      = [ 1/tan(fovX/2)  0        0       0
          0        1/tan(fovY/2)  0       0
          0              0     f/f-n   -f*n/f-n

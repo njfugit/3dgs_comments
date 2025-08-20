@@ -1,18 +1,30 @@
 CompileFlags:
     Remove:
+        - "-gencode=*"
+        - "--generate-code=*"
+        # - '--generate-code=arch=compute_70,code=[compute_70,sm_70]'
+        # - '--generate-code=arch=compute_75,code=[compute_75,sm_75]'
+        # - '--generate-code=arch=compute_86,code=[compute_86,sm_86]'
+        # --- 其他常见的不兼容参数 ---
         - "--extended-lambda"
-        - "-gencode"
+        - '--compiler-options'
         - "-rdc=true"
-        - '-forward-unknown-to-host-compiler'
         - '--expt-relaxed-constexpr'
-        - '--generate-code=arch=compute_70,code=[compute_70,sm_70]'
-        - '--generate-code=arch=compute_75,code=[compute_75,sm_75]'
-        - '--generate-code=arch=compute_86,code=[compute_86,sm_86]'
         - '-forward-unknown-to-host-compiler'
         - '-arch=native'
         - '--options-file'
-        - '-Xcompiler=-fPIC'
-    Add: 
+        - '-Xcompiler' # 移除 -Xcompiler 和它后面的参数
+        - '.*-fPIC.*' # 移除类似 -fPIC 或 -Xcompiler=-fPIC 的参数 (正则)
+    Add:
         - '-xcuda'
         - '--cuda-path=/usr/local/cuda-11.3'
-        - '--cuda-gpu-arch=sm_75'
+        - '--cuda-gpu-arch=sm_86'
+        - "-std=c++17"
+      
+        # - '-I/media/vr134096/DATA/Conda_envs/envs/gaussian_splatting/include/python3.7m'
+        # - '-I/media/vr134096/DATA/Conda_envs/envs/gaussian_splatting/lib/python3.7/site-packages/torch/include'
+        # - '-I/media/vr134096/DATA/Conda_envs/envs/gaussian_splatting/lib/python3.7/site-packages/torch/include/torch/csrc/api/include'
+        # - '-I/media/vr134096/DATA/Conda_envs/envs/gaussian_splatting/lib/python3.7/site-packages/torch/include/TH'
+        # - '-I/media/vr134096/DATA/Conda_envs/envs/gaussian_splatting/lib/python3.7/site-packages/torch/include/THC'
+        # - '-I/media/vr134096/DATA/Conda_envs/envs/gaussian_splatting/lib/python3.7/site-packages/torch/include/pybind11'
+        # - '-I/media/vr134096/DATA/Conda_envs/envs/gaussian_splatting/lib/python3.7/site-packages/torch/include/pybind11/detail'
