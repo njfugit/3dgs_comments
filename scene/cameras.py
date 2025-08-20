@@ -51,7 +51,12 @@ class Camera(nn.Module):
         self.trans = trans
         self.scale = scale
         #注意这里的投影矩阵计算和cuda中实现一致性 行优先
-        #这里的R,T指的是world-> camera
+        #这里的R,T指的是world-> camera  
+        
+        # 这里添加转置为了满足cuda和opengl中列优先的矩阵存储方式
+        # pytorch中矩阵张量存储是按照行主元存储的
+        # 被传递给GLM 读取 PyTorch 的内存时，它会按列主序解释
+        # 为了让其能够正确读取，提前生成标准矩阵的转置形式
         self.world_view_transform = torch.tensor(getWorld2View2(R, T, trans, scale)).transpose(0, 1).cuda()
         self.projection_matrix = getProjectionMatrix(znear=self.znear, zfar=self.zfar, fovX=self.FoVx, fovY=self.FoVy).transpose(0,1).cuda()
         self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
