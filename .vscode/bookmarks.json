@@ -1,0 +1,44 @@
+{
+	"files": [
+		{
+			"path": "submodules/diff-gaussian-rasterization/cuda_rasterizer/forward.cu",
+			"bookmarks": [
+				{
+					"line": 155,
+					"column": 51,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "utils/general_utils.py",
+			"bookmarks": [
+				{
+					"line": 146,
+					"column": 49,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "arguments/__init__.py",
+			"bookmarks": [
+				{
+					"line": 81,
+					"column": 33,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "scene/cameras.py",
+			"bookmarks": [
+				{
+					"line": 59,
+					"column": 8,
+					"label": ""
+				}
+			]
+		}
+	]
+}
