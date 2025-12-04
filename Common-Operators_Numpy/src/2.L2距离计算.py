@@ -14,7 +14,7 @@ def L2_1(cloud1, cloud2):
     return dist
 
 def L2_2(cloud1, cloud2):
-    cloud1 = cloud1[:, None, :] # (m, n) -> (m, 1, n)
+    cloud1 = cloud1[:, None, :] # (m, d) -> (m, 1, d)
     
     # Calculate the L2 distance
     dist = np.sqrt(np.sum((cloud1 - cloud2)**2, axis=2))
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     cloud1 = np.array([[1, 2], [3, 4], [5, 6]])
     cloud2 = np.array([[7, 8], [9, 10]])
 
-    # 计算成对的L2距离
+    # 利用numpy的计算成对的L2距离
     distance_matrix_1 = L2_1(cloud1, cloud2)
     distance_matrix_2 = L2_2(cloud1, cloud2)
     distance_matrix_3 = L2_3(cloud1, cloud2)

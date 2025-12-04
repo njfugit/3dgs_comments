@@ -26,7 +26,7 @@ if __name__ == "__main__":
     kernel = np.ones((3, 3), dtype=np.float32) / (3 * 3)
     print(kernel.shape)
 
-    image = cv2.imread("./test.jpg", )
+    image = cv2.imread("./Common-Operators_Numpy-/src/test.jpg", )
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     print(image.shape)
 
